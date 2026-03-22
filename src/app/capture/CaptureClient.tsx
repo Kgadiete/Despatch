@@ -38,6 +38,13 @@ export default function CaptureClient() {
   const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRestoredRef = useRef(false);
+  const ocrAbortRef = useRef(false);
+
+  // Check if OCR is enabled (default: on)
+  const isOcrEnabled = () => {
+    try { return localStorage.getItem('despatch_ocr_enabled') !== 'false'; }
+    catch { return true; }
+  };
 
   // Restore draft on mount
   useEffect(() => {
@@ -91,10 +98,29 @@ export default function CaptureClient() {
     const compressed = await compressImage(blob);
     setPhotoBlob(compressed);
     setPhotoUrl(URL.createObjectURL(compressed));
-    setStep('ocr');
+    ocrAbortRef.current = false;
 
+    // Save draft immediately so photo survives navigation
+    await saveDraft({
+      id: DRAFT_ID,
+      reg_no: regNo,
+      step: 'form',
+      form_data: formData,
+      photo_blob: compressed,
+      updated_at: new Date().toISOString(),
+    });
+
+    // Skip OCR entirely if user disabled it
+    if (!isOcrEnabled()) {
+      setStep('form');
+      return;
+    }
+
+    setStep('ocr');
     try {
       const result = await recognizeSlip(compressed, setOcrProgress);
+      // If user skipped during OCR, don't overwrite form
+      if (ocrAbortRef.current) return;
       const fields = result.fields;
       setOcrFields(fields);
       const ocrFormData: SlipFormData = {
@@ -111,12 +137,17 @@ export default function CaptureClient() {
         notes: '',
       };
       setFormData(ocrFormData);
-      // Auto-save draft immediately after OCR
       scheduleDraftSave(ocrFormData, 'form', regNo, compressed);
     } catch (err) {
+      if (ocrAbortRef.current) return;
       console.error('OCR failed:', err);
       showToast('OCR failed — fill in manually', 'error');
     }
+    if (!ocrAbortRef.current) setStep('form');
+  }, [regNo, formData, scheduleDraftSave]);
+
+  const handleSkipOcr = useCallback(() => {
+    ocrAbortRef.current = true;
     setStep('form');
   }, []);
 
@@ -275,6 +306,12 @@ export default function CaptureClient() {
               />
             </div>
             <p className="text-xs text-slate-400 mt-2">{Math.round(ocrProgress * 100)}%</p>
+            <button
+              onClick={handleSkipOcr}
+              className="mt-6 px-6 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors"
+            >
+              Skip — fill in manually
+            </button>
           </div>
         )}
 

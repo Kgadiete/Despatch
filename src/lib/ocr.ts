@@ -25,8 +25,6 @@ export async function recognizeSlip(
   currentProgressCallback = onProgress ?? null;
   const w = await getWorker();
 
-  // Try multiple rotations and preprocessing variants, pick the best result
-  const angles = [0, 90, 180, 270, 45, -45, 135, -135];
   let bestText = '';
   let bestFields: OCRFields = {
     job_number: null, cs_number: null, customer: null,
@@ -34,50 +32,33 @@ export async function recognizeSlip(
   };
   let bestScore = -1;
 
-  // Phase 1: Quick scan at cardinal + diagonal angles with aggressive preprocessing
-  for (let i = 0; i < angles.length; i++) {
-    // Report progress across all rotation attempts
-    if (currentProgressCallback) {
-      currentProgressCallback((i / angles.length) * 0.8);
-    }
+  // Single pass with light preprocessing (fast — ~10-15s on mobile)
+  const processed = await preprocessImage(imageBlob, 0);
+  const { data } = await w.recognize(processed);
+  const text = data.text;
+  const fields = extractFieldsFromText(text);
+  const score = countExtractedFields(fields) + (data.confidence / 100) * 0.5;
 
-    const processed = await preprocessImage(imageBlob, angles[i]);
-    const { data } = await w.recognize(processed);
-    const text = data.text;
-    const fields = extractFieldsFromText(text);
-    const score = countExtractedFields(fields) + (data.confidence / 100) * 0.5;
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestText = text;
-      bestFields = fields;
-    }
-
-    // If we got a strong match (4+ fields), stop early
-    if (countExtractedFields(fields) >= 4) break;
+  if (score > bestScore) {
+    bestScore = score;
+    bestText = text;
+    bestFields = fields;
   }
 
-  // Phase 2: If still poor, try inverted + different thresholds
+  // Only try 90° if first pass got <2 fields (rotated label)
   if (countExtractedFields(bestFields) < 2) {
-    for (const angle of [0, 90, 45, -45]) {
-      const processed = await preprocessImage(imageBlob, angle, true);
-      const { data } = await w.recognize(processed);
-      const text = data.text;
-      const fields = extractFieldsFromText(text);
-      const score = countExtractedFields(fields) + (data.confidence / 100) * 0.5;
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestText = text;
-        bestFields = fields;
-      }
-
-      if (countExtractedFields(fields) >= 3) break;
+    if (currentProgressCallback) currentProgressCallback(0.5);
+    const rotated = await preprocessImage(imageBlob, 90);
+    const { data: data2 } = await w.recognize(rotated);
+    const fields2 = extractFieldsFromText(data2.text);
+    const score2 = countExtractedFields(fields2) + (data2.confidence / 100) * 0.5;
+    if (score2 > bestScore) {
+      bestText = data2.text;
+      bestFields = fields2;
     }
   }
 
   currentProgressCallback = null;
-
   return { raw_text: bestText, fields: bestFields };
 }
 

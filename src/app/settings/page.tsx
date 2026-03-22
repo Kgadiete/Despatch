@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const { isOnline, syncStatus, lastSyncResult, triggerSync } = useSync();
   const [stats, setStats] = useState({ trucks: 0, slips: 0, photos: 0 });
   const [clearing, setClearing] = useState(false);
+  const [ocrEnabled, setOcrEnabled] = useState(true);
 
   useEffect(() => {
     async function loadStats() {
@@ -22,6 +23,10 @@ export default function SettingsPage() {
       setStats({ trucks, slips, photos });
     }
     loadStats();
+    // Load OCR preference
+    try {
+      setOcrEnabled(localStorage.getItem('despatch_ocr_enabled') !== 'false');
+    } catch { /* ignore */ }
   }, [syncStatus]);
 
   async function handleSync() {
@@ -122,6 +127,28 @@ export default function SettingsPage() {
               <span className="text-slate-500">Cached Photos</span>
               <span className="font-medium text-slate-700">{stats.photos}</span>
             </div>
+          </div>
+        </div>
+
+        {/* Scanning */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <h2 className="text-sm font-semibold text-slate-700 mb-3">Scanning</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-700">Text Extraction (OCR)</p>
+              <p className="text-xs text-slate-400">Auto-read text from slip photos</p>
+            </div>
+            <button
+              onClick={() => {
+                const next = !ocrEnabled;
+                setOcrEnabled(next);
+                localStorage.setItem('despatch_ocr_enabled', String(next));
+                showToast(next ? 'OCR enabled' : 'OCR disabled', 'info');
+              }}
+              className={`relative w-11 h-6 rounded-full transition-colors ${ocrEnabled ? 'bg-green-500' : 'bg-slate-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${ocrEnabled ? 'translate-x-5' : ''}`} />
+            </button>
           </div>
         </div>
 

@@ -15,6 +15,8 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
     if (file) {
       onCapture(file);
     }
+    // Reset value so re-selecting the same file triggers onChange again
+    e.target.value = '';
   }
 
   return (
