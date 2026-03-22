@@ -10,7 +10,7 @@ export default function UpdateNotifier() {
   useEffect(() => {
     const lastVersion = localStorage.getItem(VERSION_KEY);
     if (lastVersion && lastVersion !== currentVersion && currentVersion !== 'dev') {
-      showToast(`Updated to v${currentVersion}`, 'info');
+      showToast(`🚀 App updated to v${currentVersion}`, 'info');
     }
     localStorage.setItem(VERSION_KEY, currentVersion);
   }, []);
