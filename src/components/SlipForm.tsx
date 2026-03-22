@@ -18,6 +18,20 @@ const MAKES = [
 
 const SERVICE_TYPES = ['Repair', 'New', 'Retread', 'Recap', 'Regrove'];
 
+const DOC_TYPES = [
+  { value: 'INV', label: 'INV — Invoice' },
+  { value: 'IBT', label: 'IBT — Inter-Branch Transfer' },
+  { value: 'DIBT', label: 'DIBT — Distance IBT' },
+];
+
+const COMMON_SIZES = [
+  '315/80R22.5', '295/80R22.5', '385/65R22.5', '12R22.5',
+  '11R22.5', '275/70R22.5', '245/70R19.5', '215/75R17.5',
+  '7.00-15', '7.50-16', '8.25-20', '9.00-20', '10.00-20',
+  '11.00-20', '12.00-20', '14.00-20', '16.00-20',
+  '265/70R19.5', '305/70R22.5', '225/75R17.5',
+];
+
 export default function SlipForm({ data, ocrFields, onChange, duplicateWarning }: SlipFormProps) {
   function update(field: keyof SlipFormData, value: string) {
     onChange({ ...data, [field]: value });
@@ -127,9 +141,13 @@ export default function SlipForm({ data, ocrFields, onChange, duplicateWarning }
           type="text"
           value={data.tyre_size}
           onChange={(e) => update('tyre_size', e.target.value)}
+          list="sizes-list"
           placeholder="e.g. 315/80R22.5"
           className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
         />
+        <datalist id="sizes-list">
+          {COMMON_SIZES.map((s) => <option key={s} value={s} />)}
+        </datalist>
       </div>
 
       {/* Serial */}
@@ -147,17 +165,33 @@ export default function SlipForm({ data, ocrFields, onChange, duplicateWarning }
         />
       </div>
 
-      {/* Invoice */}
+      {/* Document Type + Number */}
       <div>
-        <label className="text-sm font-medium text-slate-700 mb-1 block">Invoice / IBT #</label>
-        <input
-          type="text"
-          value={data.invoice_number}
-          onChange={(e) => update('invoice_number', e.target.value)}
-          placeholder="e.g. INV-4521"
-          className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-        />
+        <label className="text-sm font-medium text-slate-700 mb-1 block">Document Type</label>
+        <select
+          value={data.doc_type}
+          onChange={(e) => update('doc_type', e.target.value)}
+          className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+        >
+          <option value="">Select...</option>
+          {DOC_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
       </div>
+
+      {data.doc_type && (
+        <div>
+          <label className="text-sm font-medium text-slate-700 mb-1 block">{data.doc_type} Number</label>
+          <input
+            type="text"
+            value={data.doc_number}
+            onChange={(e) => update('doc_number', e.target.value)}
+            placeholder={`e.g. ${data.doc_type}-4521`}
+            className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+          />
+        </div>
+      )}
 
       {/* Notes */}
       <div>

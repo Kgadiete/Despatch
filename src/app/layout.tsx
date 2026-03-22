@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/layout/BottomNav";
 import OfflineBanner from "@/components/layout/OfflineBanner";
+import UpdateNotifier from "@/components/UpdateNotifier";
 import { SyncProvider } from "@/context/SyncContext";
 import { ToastContainer } from "@/components/Toast";
 
@@ -52,6 +53,7 @@ export default function RootLayout({
         <SyncProvider>
           <OfflineBanner />
           <ToastContainer />
+          <UpdateNotifier />
           <main className="flex-1 pb-20 max-w-lg mx-auto w-full">
             {children}
           </main>

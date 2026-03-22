@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { v4 as uuid } from 'uuid';
 import Header from '@/components/layout/Header';
@@ -8,7 +8,7 @@ import CameraCapture from '@/components/CameraCapture';
 import SlipForm from '@/components/SlipForm';
 import { compressImage } from '@/lib/image';
 import { recognizeSlip } from '@/lib/ocr';
-import { addTruck, getTruckByReg, addSlip, addPhoto, checkDuplicateJob } from '@/lib/db';
+import { addTruck, getTruckByReg, addSlip, addPhoto, checkDuplicateJob, saveDraft, getDraft, deleteDraft } from '@/lib/db';
 import { showToast } from '@/components/Toast';
 import type { SlipFormData, OCRFields } from '@/types';
 
@@ -16,8 +16,10 @@ type Step = 'truck' | 'photo' | 'ocr' | 'form';
 
 const EMPTY_FORM: SlipFormData = {
   job_number: '', cs_number: '', customer: '', service_type: '',
-  tyre_make: '', tyre_size: '', serial: '', invoice_number: '', notes: '',
+  tyre_make: '', tyre_size: '', serial: '', doc_type: '', doc_number: '', invoice_number: '', notes: '',
 };
+
+const DRAFT_ID = 'capture';
 
 export default function CaptureClient() {
   const searchParams = useSearchParams();
@@ -33,6 +35,49 @@ export default function CaptureClient() {
   const [formData, setFormData] = useState<SlipFormData>(EMPTY_FORM);
   const [duplicateWarning, setDuplicateWarning] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftRestoredRef = useRef(false);
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (draftRestoredRef.current) return;
+    draftRestoredRef.current = true;
+    (async () => {
+      const draft = await getDraft(DRAFT_ID);
+      if (!draft) return;
+      // Only restore if there's meaningful data
+      const hasData = draft.form_data.job_number || draft.form_data.customer || draft.form_data.tyre_make;
+      if (!hasData) return;
+      setRegNo(draft.reg_no || prefilledReg);
+      setFormData(draft.form_data);
+      if (draft.photo_blob) {
+        setPhotoBlob(draft.photo_blob);
+        setPhotoUrl(URL.createObjectURL(draft.photo_blob));
+      }
+      setStep((draft.step as Step) || 'form');
+      showToast('Draft restored', 'success');
+    })();
+  }, [prefilledReg]);
+
+  // Auto-save draft (debounced 2s after any form change)
+  const scheduleDraftSave = useCallback((data: SlipFormData, currentStep: Step, currentReg: string, currentPhoto: Blob | null) => {
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    setDraftStatus('saving');
+    draftTimer.current = setTimeout(async () => {
+      await saveDraft({
+        id: DRAFT_ID,
+        reg_no: currentReg,
+        step: currentStep,
+        form_data: data,
+        photo_blob: currentPhoto || undefined,
+        updated_at: new Date().toISOString(),
+      });
+      setDraftStatus('saved');
+      // Reset indicator after 3s
+      setTimeout(() => setDraftStatus('idle'), 3000);
+    }, 2000);
+  }, []);
 
   const handleTruckSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +97,7 @@ export default function CaptureClient() {
       const result = await recognizeSlip(compressed, setOcrProgress);
       const fields = result.fields;
       setOcrFields(fields);
-      setFormData({
+      const ocrFormData: SlipFormData = {
         job_number: fields.job_number?.value || '',
         cs_number: fields.cs_number?.value || '',
         customer: fields.customer?.value || '',
@@ -60,9 +105,14 @@ export default function CaptureClient() {
         tyre_make: fields.tyre_make?.value || '',
         tyre_size: fields.tyre_size?.value || '',
         serial: fields.serial?.value || '',
+        doc_type: '',
+        doc_number: '',
         invoice_number: '',
         notes: '',
-      });
+      };
+      setFormData(ocrFormData);
+      // Auto-save draft immediately after OCR
+      scheduleDraftSave(ocrFormData, 'form', regNo, compressed);
     } catch (err) {
       console.error('OCR failed:', err);
       showToast('OCR failed — fill in manually', 'error');
@@ -72,6 +122,7 @@ export default function CaptureClient() {
 
   const handleFormChange = useCallback(async (data: SlipFormData) => {
     setFormData(data);
+    scheduleDraftSave(data, 'form', regNo, photoBlob);
     if (data.job_number) {
       const existing = await getTruckByReg(regNo);
       if (existing) {
@@ -81,7 +132,7 @@ export default function CaptureClient() {
     } else {
       setDuplicateWarning(false);
     }
-  }, [regNo]);
+  }, [regNo, photoBlob, scheduleDraftSave]);
 
   const handleSave = useCallback(async () => {
     if (!formData.job_number.trim()) {
@@ -115,7 +166,9 @@ export default function CaptureClient() {
         tyre_size: formData.tyre_size.trim() || null,
         serial: formData.serial.trim() || null,
         photo_url: null,
-        invoice_number: formData.invoice_number.trim() || null,
+        doc_type: formData.doc_type || null,
+        doc_number: formData.doc_number.trim() || null,
+        invoice_number: formData.doc_number.trim() || formData.invoice_number.trim() || null,
         notes: formData.notes.trim() || null,
         scanned_at: now,
         created_at: now,
@@ -126,6 +179,10 @@ export default function CaptureClient() {
       if (photoBlob) {
         await addPhoto({ id: uuid(), slip_id: slipId, blob: photoBlob });
       }
+
+      // Clear draft on successful save
+      if (draftTimer.current) clearTimeout(draftTimer.current);
+      await deleteDraft(DRAFT_ID);
 
       showToast('Slip saved!', 'success');
       router.push(`/truck?reg=${encodeURIComponent(regNo)}`);
@@ -240,6 +297,24 @@ export default function CaptureClient() {
               onChange={handleFormChange}
               duplicateWarning={duplicateWarning}
             />
+
+            {/* Draft status indicator */}
+            {draftStatus !== 'idle' && (
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+                {draftStatus === 'saving' && (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                    Saving draft...
+                  </>
+                )}
+                {draftStatus === 'saved' && (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-green-400" />
+                    Draft saved
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="mt-6 flex gap-3">
               <button

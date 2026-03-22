@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import SlipForm from '@/components/SlipForm';
 import EmptyState from '@/components/EmptyState';
-import { getSlipById, updateSlip } from '@/lib/db';
+import { getSlipById, updateSlip, saveDraft, getDraft, deleteDraft } from '@/lib/db';
 import { updateSlipInSupabase } from '@/lib/sync';
 import { showToast } from '@/components/Toast';
 import type { SlipFormData, LocalSlip } from '@/types';
@@ -14,18 +14,28 @@ export default function EditClient() {
   const searchParams = useSearchParams();
   const regNo = searchParams.get('reg') || '';
   const slipId = searchParams.get('id') || '';
+  const draftId = `edit:${slipId}`;
   const router = useRouter();
   const [slip, setSlip] = useState<LocalSlip | null>(null);
   const [formData, setFormData] = useState<SlipFormData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     async function load() {
       if (!slipId) { setLoading(false); return; }
       const found = await getSlipById(slipId);
-      if (found) {
-        setSlip(found);
+      if (!found) { setLoading(false); return; }
+      setSlip(found);
+
+      // Check for existing draft first
+      const draft = await getDraft(`edit:${slipId}`);
+      if (draft) {
+        setFormData(draft.form_data);
+        showToast('Draft restored', 'success');
+      } else {
         setFormData({
           job_number: found.job_number,
           cs_number: found.cs_number || '',
@@ -34,6 +44,8 @@ export default function EditClient() {
           tyre_make: found.tyre_make || '',
           tyre_size: found.tyre_size || '',
           serial: found.serial || '',
+          doc_type: (found.doc_type as SlipFormData['doc_type']) || '',
+          doc_number: found.doc_number || '',
           invoice_number: found.invoice_number || '',
           notes: found.notes || '',
         });
@@ -42,6 +54,27 @@ export default function EditClient() {
     }
     load();
   }, [slipId]);
+
+  const scheduleDraftSave = useCallback((data: SlipFormData) => {
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    setDraftStatus('saving');
+    draftTimer.current = setTimeout(async () => {
+      await saveDraft({
+        id: `edit:${slipId}`,
+        reg_no: regNo,
+        step: 'form',
+        form_data: data,
+        updated_at: new Date().toISOString(),
+      });
+      setDraftStatus('saved');
+      setTimeout(() => setDraftStatus('idle'), 3000);
+    }, 2000);
+  }, [slipId, regNo]);
+
+  const handleFormChange = useCallback((data: SlipFormData) => {
+    setFormData(data);
+    scheduleDraftSave(data);
+  }, [scheduleDraftSave]);
 
   const handleSave = useCallback(async () => {
     if (!slip || !formData) return;
@@ -59,7 +92,9 @@ export default function EditClient() {
         tyre_make: formData.tyre_make.trim() || null,
         tyre_size: formData.tyre_size.trim() || null,
         serial: formData.serial.trim() || null,
-        invoice_number: formData.invoice_number.trim() || null,
+        doc_type: formData.doc_type || null,
+        doc_number: formData.doc_number.trim() || null,
+        invoice_number: formData.doc_number.trim() || formData.invoice_number.trim() || null,
         notes: formData.notes.trim() || null,
         synced: false,
       };
@@ -73,6 +108,10 @@ export default function EditClient() {
           // Will sync later
         }
       }
+
+      // Clear draft on successful save
+      if (draftTimer.current) clearTimeout(draftTimer.current);
+      await deleteDraft(draftId);
 
       showToast('Slip updated!', 'success');
       router.back();
@@ -114,8 +153,26 @@ export default function EditClient() {
 
         <SlipForm
           data={formData}
-          onChange={setFormData}
+          onChange={handleFormChange}
         />
+
+        {/* Draft status indicator */}
+        {draftStatus !== 'idle' && (
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+            {draftStatus === 'saving' && (
+              <>
+                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                Saving draft...
+              </>
+            )}
+            {draftStatus === 'saved' && (
+              <>
+                <div className="w-2 h-2 rounded-full bg-green-400" />
+                Draft saved
+              </>
+            )}
+          </div>
+        )}
 
         <div className="mt-6 flex gap-3">
           <button

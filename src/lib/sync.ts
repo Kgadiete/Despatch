@@ -71,6 +71,8 @@ export async function syncAll(): Promise<{ synced: number; failed: number }> {
         tyre_size: slip.tyre_size,
         serial: slip.serial,
         photo_url: photoUrl,
+        doc_type: slip.doc_type,
+        doc_number: slip.doc_number,
         invoice_number: slip.invoice_number,
         notes: slip.notes,
         scanned_at: slip.scanned_at,

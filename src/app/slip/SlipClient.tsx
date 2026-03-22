@@ -81,7 +81,8 @@ export default function SlipClient() {
     { label: 'Make', value: slip.tyre_make },
     { label: 'Size', value: slip.tyre_size },
     { label: 'Serial', value: slip.serial },
-    { label: 'Invoice', value: slip.invoice_number },
+    { label: 'Doc Type', value: slip.doc_type },
+    { label: slip.doc_type ? `${slip.doc_type} #` : 'Doc #', value: slip.doc_number },
     { label: 'Notes', value: slip.notes },
   ];
 

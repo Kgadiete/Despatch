@@ -1,10 +1,11 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { LocalTruck, LocalSlip, LocalPhoto } from '@/types';
+import type { LocalTruck, LocalSlip, LocalPhoto, Draft } from '@/types';
 
 class DespatchDB extends Dexie {
   trucks!: EntityTable<LocalTruck, 'id'>;
   slips!: EntityTable<LocalSlip, 'id'>;
   photos!: EntityTable<LocalPhoto, 'id'>;
+  drafts!: EntityTable<Draft, 'id'>;
 
   constructor() {
     super('despatch-tracker');
@@ -12,6 +13,12 @@ class DespatchDB extends Dexie {
       trucks: '&id, &reg_no, created_at, synced',
       slips: '&id, truck_id, job_number, scanned_at, synced',
       photos: '&id, slip_id',
+    });
+    this.version(2).stores({
+      trucks: '&id, &reg_no, created_at, synced',
+      slips: '&id, truck_id, job_number, scanned_at, synced',
+      photos: '&id, slip_id',
+      drafts: '&id',
     });
   }
 }
@@ -123,4 +130,18 @@ export async function checkDuplicateJob(truckId: string, jobNumber: string): Pro
     .filter(s => s.job_number === jobNumber)
     .first();
   return !!existing;
+}
+
+// ── Draft helpers ──
+
+export async function saveDraft(draft: Draft): Promise<void> {
+  await db.drafts.put(draft);
+}
+
+export async function getDraft(id: string): Promise<Draft | undefined> {
+  return db.drafts.get(id);
+}
+
+export async function deleteDraft(id: string): Promise<void> {
+  await db.drafts.delete(id);
 }

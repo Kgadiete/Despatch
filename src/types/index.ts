@@ -15,6 +15,8 @@ export interface Slip {
   tyre_size?: string | null;
   serial?: string | null;
   photo_url?: string | null;
+  doc_type?: string | null;
+  doc_number?: string | null;
   invoice_number?: string | null;
   notes?: string | null;
   scanned_at: string;
@@ -57,6 +59,8 @@ export interface OCRField {
   confidence: 'high' | 'medium' | 'low';
 }
 
+export type DocType = 'INV' | 'IBT' | 'DIBT' | '';
+
 export interface SlipFormData {
   job_number: string;
   cs_number: string;
@@ -65,6 +69,8 @@ export interface SlipFormData {
   tyre_make: string;
   tyre_size: string;
   serial: string;
+  doc_type: DocType;
+  doc_number: string;
   invoice_number: string;
   notes: string;
 }
@@ -72,3 +78,12 @@ export interface SlipFormData {
 export type DateFilter = 'today' | 'week' | 'all' | Date;
 
 export type SyncStatus = 'idle' | 'syncing' | 'error';
+
+export interface Draft {
+  id: string;           // "capture" or "edit:{slipId}"
+  reg_no: string;
+  step: string;
+  form_data: SlipFormData;
+  photo_blob?: Blob;
+  updated_at: string;
+}
