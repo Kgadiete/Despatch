@@ -148,10 +148,16 @@ export default function SettingsPage() {
 
         {/* About */}
         <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <h2 className="text-sm font-semibold text-slate-700 mb-2">About</h2>
+          <h2 className="text-sm font-semibold text-slate-700 mb-3">About</h2>
           <p className="text-xs text-slate-500">
-            Despatch Tracker v1.0.0 — Offline-first PWA for tracking unscanned tyre slips during dispatch loading at ATT.
+            Despatch Tracker — Offline-first PWA for tracking unscanned tyre slips during dispatch loading at ATT.
           </p>
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Build</span>
+              <span className="font-mono text-slate-600">{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}</span>
+            </div>
+          </div>
         </div>
       </div>
     </>

@@ -14,7 +14,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 safe-area-bottom">
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
+      <div className="flex items-center justify-around h-16 max-w-lg mx-auto relative">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
@@ -30,6 +30,9 @@ export default function BottomNav() {
             </Link>
           );
         })}
+        <span className="absolute bottom-0.5 right-2 text-[9px] font-mono text-slate-300 select-none">
+          v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}
+        </span>
       </div>
     </nav>
   );
