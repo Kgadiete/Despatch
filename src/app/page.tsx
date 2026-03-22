@@ -56,7 +56,15 @@ export default function Home() {
         if (slips.length === 0) return false;
         if (search) {
           const q = search.toLowerCase();
-          return truck.reg_no.toLowerCase().includes(q);
+          // Search across truck reg + all slip fields
+          if (truck.reg_no.toLowerCase().includes(q)) return true;
+          return slips.some((s) =>
+            s.job_number?.toLowerCase().includes(q) ||
+            s.invoice_number?.toLowerCase().includes(q) ||
+            s.cs_number?.toLowerCase().includes(q) ||
+            s.customer?.toLowerCase().includes(q) ||
+            s.notes?.toLowerCase().includes(q)
+          );
         }
         return true;
       })

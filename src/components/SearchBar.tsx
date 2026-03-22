@@ -4,7 +4,7 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-export default function SearchBar({ value, onChange, placeholder = 'Search by reg no...' }: SearchBarProps) {
+export default function SearchBar({ value, onChange, placeholder = 'Search reg, job#, invoice, IBT...' }: SearchBarProps) {
   return (
     <div className="relative">
       <svg
