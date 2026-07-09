@@ -1,0 +1,71 @@
+@import 'tailwindcss';
+
+@layer base {
+  body {
+    @apply bg-slate-900 text-gray-100 font-sans;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+
+  button {
+    @apply transition-colors duration-200;
+  }
+
+  input, textarea, select {
+    @apply bg-slate-800 border border-slate-700 rounded text-gray-100;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-amber-400 hover:bg-amber-500 text-slate-900 font-semibold py-2 px-4 rounded-lg transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-700 hover:bg-slate-600 text-gray-100 font-semibold py-2 px-4 rounded-lg transition-colors;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors;
+  }
+
+  .card {
+    @apply bg-slate-800 border border-slate-700 rounded-lg p-4 shadow-lg;
+  }
+
+  .input-base {
+    @apply bg-slate-700 border border-slate-600 rounded px-3 py-2 text-gray-100 focus:outline-none focus:border-amber-400;
+  }
+
+  .sheet-overlay {
+    @apply fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center;
+  }
+
+  .sheet-panel {
+    @apply bg-slate-800 border border-slate-700 rounded-t-2xl sm:rounded-lg w-full max-w-2xl p-6 overflow-y-auto;
+    max-height: min(90vh, 720px);
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .sheet-handle {
+    @apply w-12 h-1 bg-slate-600 rounded-full mx-auto mb-4 sm:hidden;
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+#root {
+  @apply min-h-screen flex flex-col;
+}
+
+html, body {
+  @apply h-full;
+}
+
+* {
+  @apply box-border;
+}
