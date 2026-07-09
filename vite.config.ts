@@ -158,6 +158,7 @@ const documentLookupDevApi = {
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/Despatch/',
   plugins: [
     react(),
     documentLookupDevApi,
@@ -175,11 +176,11 @@ export default defineConfig({
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
-        scope: '/',
-        start_url: '/',
+        scope: '/Despatch/',
+        start_url: '/Despatch/',
         icons: [
           {
-            src: '/favicon.svg',
+            src: '/Despatch/favicon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any',
