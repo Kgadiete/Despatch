@@ -58,6 +58,10 @@ interface LookupResponse {
   };
 }
 
+interface LookupErrorResponse {
+  error?: string;
+}
+
 interface DocumentsProps {
   onBack: () => void;
 }
@@ -131,6 +135,18 @@ const Documents = ({ onBack }: DocumentsProps) => {
     }
 
     const value = toRequestValue(docType, suffix);
+    const endpointValue = endpoint.trim() || defaultEndpoint();
+    const isStaticGithubHost =
+      typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
+    const isRelativeEndpoint = endpointValue.startsWith('/');
+
+    if (isStaticGithubHost && isRelativeEndpoint) {
+      setStatusText(
+        'Hosted app cannot call /api directly. Open Advanced fields and set Lookup endpoint to a live backend URL.',
+      );
+      return;
+    }
+
     setLoading(true);
     setStatusText(`Fetching ${DOC_PREFIX[docType]}${suffix} ...`);
 
@@ -139,7 +155,7 @@ const Documents = ({ onBack }: DocumentsProps) => {
       const abort = new AbortController();
       timer = setTimeout(() => abort.abort(), 65000);
 
-      const res = await fetch(endpoint.trim() || defaultEndpoint(), {
+      const res = await fetch(endpointValue, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: abort.signal,
@@ -153,7 +169,16 @@ const Documents = ({ onBack }: DocumentsProps) => {
         }),
       });
 
-      const json = (await res.json()) as LookupResponse & { error?: string };
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.toLowerCase().includes('application/json')) {
+        const text = await res.text();
+        const sample = text.replace(/\s+/g, ' ').slice(0, 80);
+        throw new Error(
+          `Lookup endpoint returned non-JSON (${res.status}). This usually means wrong endpoint. Response starts with: ${sample}`,
+        );
+      }
+
+      const json = (await res.json()) as LookupResponse & LookupErrorResponse;
       if (!res.ok) {
         throw new Error(json.error || 'Lookup request failed.');
       }
